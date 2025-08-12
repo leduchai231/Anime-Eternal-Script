@@ -1,9 +1,9 @@
 -- Anime Eternal GUI Script (FIX)
 -- Version Configuration
-local SCRIPT_VERSION = "0.02"
+local SCRIPT_VERSION = "1.0.0"
 local SCRIPT_NAME = "Anime Eternal"
-local SCRIPT_STATUS = "BETA"
-local SCRIPT_URL = "https://raw.githubusercontent.com/example/anime-eternal/main/script.lua"
+local SCRIPT_STATUS = "Release"
+local SCRIPT_URL = "https://raw.githubusercontent.com/leduchai231/Anime-Eternal-Script/refs/heads/main/main.lua"
 
 -- Load OrionLib with mobile fixes
 local OrionLib
@@ -35,30 +35,73 @@ local Window = OrionLib:MakeWindow({
     Icon = "rbxassetid://4483345998"
 })
 
--- Mobile optimization
+-- Enhanced Mobile optimization for Cloud Phone
 local function optimizeForMobile()
     local ok, err = pcall(function()
-        if game:GetService("UserInputService").TouchEnabled then
-            local coreGui = game:GetService("CoreGui")
+        local UserInputService = game:GetService("UserInputService")
+        local coreGui = game:GetService("CoreGui")
+        
+        -- Enhanced mobile detection
+        if UserInputService.TouchEnabled or UserInputService.KeyboardEnabled == false then
             local orionGui = coreGui:FindFirstChild("Orion")
             if orionGui and orionGui:FindFirstChild("Main") then
                 local mainFrame = orionGui.Main
+                
+                -- Enhanced draggable settings for cloud phone
                 mainFrame.Active = true
                 mainFrame.Draggable = true
+                mainFrame.Selectable = true
+                
+                -- Improve touch responsiveness
                 for _, d in pairs(mainFrame:GetDescendants()) do
-                    if d:IsA("GuiButton") or d:IsA("TextButton") then
+                    if d:IsA("GuiButton") or d:IsA("TextButton") or d:IsA("ImageButton") then
                         d.AutoButtonColor = true
                         d.Active = true
-                    elseif d:IsA("Frame") and d.Name:find("Slider") then
+                        d.Selectable = true
+                        -- Enhanced touch detection
+                        d.ZIndex = d.ZIndex + 1
+                    elseif d:IsA("Frame") then
+                        -- Make frames more responsive to touch
+                        if d.Name:find("Slider") or d.Name:find("Toggle") or d.Name:find("Dropdown") then
+                            d.Active = true
+                            d.Selectable = true
+                        end
+                    elseif d:IsA("TextBox") then
+                        -- Optimize textboxes for mobile input
+                        d.ClearTextOnFocus = false
                         d.Active = true
+                        d.Selectable = true
                     end
+                end
+                
+                -- Add mobile-specific positioning
+                local screenGui = mainFrame.Parent
+                if screenGui and screenGui:IsA("ScreenGui") then
+                    screenGui.ResetOnSpawn = false
+                    screenGui.IgnoreGuiInset = true
+                end
+                
+                -- Ensure GUI stays on screen for cloud phones
+                local viewportSize = workspace.CurrentCamera.ViewportSize
+                if mainFrame.Position.X.Offset + mainFrame.Size.X.Offset > viewportSize.X then
+                    mainFrame.Position = UDim2.new(0, 10, mainFrame.Position.Y.Scale, mainFrame.Position.Y.Offset)
+                end
+                if mainFrame.Position.Y.Offset + mainFrame.Size.Y.Offset > viewportSize.Y then
+                    mainFrame.Position = UDim2.new(mainFrame.Position.X.Scale, mainFrame.Position.X.Offset, 0, 10)
                 end
             end
         end
     end)
     if not ok then warn("Mobile optimization failed: " .. tostring(err)) end
 end
-task.spawn(function() task.wait(1); optimizeForMobile() end)
+
+-- Run optimization multiple times for better cloud phone support
+task.spawn(function() 
+    task.wait(1) 
+    optimizeForMobile() 
+    task.wait(2)
+    optimizeForMobile() -- Run again to ensure it takes effect
+end)
 
 -- Tabs
 local InfoTab = Window:MakeTab({ Name = "Info", PremiumOnly = false })
@@ -618,22 +661,27 @@ uiElements.farmModeDropdown = AutoFarmTab:AddDropdown({
     end
 })
 
-uiElements.moveSpeedSlider = AutoFarmTab:AddSlider({
+uiElements.moveSpeedTextbox = AutoFarmTab:AddTextbox({
     Name = "Set Move Speed",
-    Min = 1,
-    Max = 500,
-    Default = 50,
-    Increment = 1,
-    ValueName = "Speed",
+    Default = "50",
     Flag = "farmMoveSpeed",
     Save = true,
+    TextDisappear = false,
     Callback = function(Value)
-        if Value and tonumber(Value) then
+        local speed = tonumber(Value)
+        if speed and speed >= 1 and speed <= 500 then
             OrionLib:MakeNotification({
                 Name = "Move Speed",
                 Content = "Move speed set to: " .. Value,
                 Image = "rbxassetid://4483345998",
                 Time = 2
+            })
+        else
+            OrionLib:MakeNotification({
+                Name = "Move Speed Error",
+                Content = "Invalid speed! Please enter a value between 1 and 500",
+                Image = "rbxassetid://4483345998",
+                Time = 3
             })
         end
     end
@@ -1422,6 +1470,50 @@ SettingsTab:AddToggle({
                 Content = "Anti AFK enabled!",
                 Image = "rbxassetid://4483345998",
                 Time = 2
+            })
+        end
+    end
+})
+
+SettingsTab:AddToggle({
+    Name = "Fast Mode",
+    Default = false,
+    Flag = "fastModeEnabled",
+    Save = true,
+    Callback = function(v)
+        if v then
+            -- Enable Fast Mode - Make everything transparent
+            for i, v in next, workspace:GetDescendants() do
+                pcall(function()
+                    v.Transparency = 1
+                end)
+            end
+            for i, v in next, getnilinstances() do
+                pcall(function()
+                    v.Transparency = 1
+                    for i1, v1 in next, v:GetDescendants() do
+                        v1.Transparency = 1
+                    end
+                end)
+            end
+            local a = workspace
+            a.DescendantAdded:Connect(function(v)
+                pcall(function()
+                    v.Transparency = 1
+                end)
+            end)
+            OrionLib:MakeNotification({
+                Name = "Fast Mode",
+                Content = "Fast Mode enabled! All objects made transparent for better performance.",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        else
+            OrionLib:MakeNotification({
+                Name = "Fast Mode",
+                Content = "Fast Mode disabled! Note: Objects will remain transparent until game restart.",
+                Image = "rbxassetid://4483345998",
+                Time = 3
             })
         end
     end
